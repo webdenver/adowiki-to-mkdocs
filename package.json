@@ -24,6 +24,7 @@
   ],
   "license": "MIT",
   "author": "webdenver <13074466+webdenver@users.noreply.github.com>",
+  "maintainers": ["webdenver <13074466+webdenver@users.noreply.github.com>"],
   "repository": "github:webdenver/adowiki-to-mkdocs",
   "homepage": "https://github.com/webdenver/adowiki-to-mkdocs#readme",
   "bugs": "https://github.com/webdenver/adowiki-to-mkdocs/issues",
