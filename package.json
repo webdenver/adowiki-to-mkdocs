@@ -1,0 +1,42 @@
+{
+  "name": "adowiki-to-mkdocs",
+  "version": "0.1.0",
+  "description": "CLI to convert Azure DevOps project wiki to MkDocs format",
+  "type": "module",
+  "bin": {
+    "adowiki-to-mkdocs": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsup src/cli.ts --format esm --platform node --dts",
+    "prepublishOnly": "npm run build",
+    "start": "node dist/cli.js",
+    "dev": "tsx src/cli.ts"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "keywords": [
+    "ado",
+    "wiki",
+    "mkdocs",
+    "azure-devops"
+  ],
+  "license": "MIT",
+  "repository": "github:webdenver/adowiki-to-mkdocs",
+  "homepage": "https://github.com/webdenver/adowiki-to-mkdocs#readme",
+  "bugs": "https://github.com/webdenver/adowiki-to-mkdocs/issues",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "@types/yargs": "^17.0.35",
+    "tsup": "^8.5.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
