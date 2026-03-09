@@ -6,6 +6,7 @@ import yargs from 'yargs';
 import { hideBin } from 'yargs/helpers';
 import { buildTree } from './order';
 import { filterTreeByPage } from './filter';
+import { assignOutputSlugs } from './slug';
 import {
   copyTree,
   copyAttachments,
@@ -35,6 +36,7 @@ function run(options: CliOptions): void {
       process.exit(1);
     }
   }
+  assignOutputSlugs(tree);
 
   let attachmentFilter: Set<string> | undefined;
   if (options.page) {

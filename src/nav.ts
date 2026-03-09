@@ -1,3 +1,4 @@
+import { getOutputName } from './slug';
 import type { NavEntry, TreeNode } from './types';
 
 const TITLE_PLACEHOLDER = '\u0000';
@@ -27,13 +28,14 @@ export function buildNav(tree: TreeNode[], relPath: string = ''): { nav: NavEntr
   const topLevel: NavEntry[] = [];
 
   for (const node of tree) {
+    const out = getOutputName(node);
     if (node.type === 'file') {
-      const docPath = relPath ? `${relPath}/${node.name}.md` : `${node.name}.md`;
+      const docPath = relPath ? `${relPath}/${out}.md` : `${out}.md`;
       const entry: NavEntry = { type: 'page', title: nameToTitle(node.name), path: docPath };
       nav.push(entry);
       if (!relPath) topLevel.push(entry);
     } else {
-      const dirRel = relPath ? `${relPath}/${node.name}` : node.name;
+      const dirRel = relPath ? `${relPath}/${out}` : out;
       const indexPath = `${dirRel}/index.md`;
       const sectionEntry: NavEntry = {
         type: 'section',

@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { getOutputName } from './slug';
 import type { TreeNode } from './types';
 
 /**
@@ -42,16 +43,17 @@ function copyMdFile(src: string, dest: string): void {
 
 /**
  * Copy contents of a directory except .order. Copies .md files, .images, and subdirs recursively.
- * relPath: path from wiki root to current folder (e.g. 'Project-details').
+ * dirRelPathRaw: path from wiki root to current folder (raw names). dirRelPathSlug: path in docs (slug names).
  */
 function copyFolderContents(
   wikiRoot: string,
   docsDir: string,
-  dirRelPath: string,
+  dirRelPathRaw: string,
+  dirRelPathSlug: string,
   attachmentFilter?: Set<string>
 ): void {
-  const srcDir = path.join(wikiRoot, dirRelPath);
-  const destDir = path.join(docsDir, dirRelPath);
+  const srcDir = path.join(wikiRoot, dirRelPathRaw);
+  const destDir = path.join(docsDir, dirRelPathSlug);
   if (!fs.existsSync(srcDir)) return;
 
   const entries = fs.readdirSync(srcDir, { withFileTypes: true });
@@ -87,32 +89,36 @@ function copyDirRecursive(src: string, dest: string): void {
 
 /**
  * Copy tree of pages to docsDir. Optionally only copy attachment files listed in attachmentFilter (when in single-page mode).
+ * relPathRaw/relPathSlug: path from wiki root / docs root to current folder (raw names for source, slug for dest).
  */
 export function copyTree(
   wikiRoot: string,
   docsDir: string,
   tree: TreeNode[],
   attachmentFilter?: Set<string>,
-  relPath: string = ''
+  relPathRaw: string = '',
+  relPathSlug: string = ''
 ): void {
   for (const node of tree) {
+    const outputName = getOutputName(node);
     if (node.type === 'file') {
-      const srcMd = path.join(wikiRoot, relPath, node.name + '.md');
-      const destMd = path.join(docsDir, relPath, node.name + '.md');
+      const srcMd = path.join(wikiRoot, relPathRaw, node.name + '.md');
+      const destMd = path.join(docsDir, relPathSlug, outputName + '.md');
       if (fs.existsSync(srcMd)) copyMdFile(srcMd, destMd);
     } else {
-      const dirRel = relPath ? path.join(relPath, node.name) : node.name;
-      const destDir = path.join(docsDir, dirRel);
+      const dirRelRaw = relPathRaw ? path.join(relPathRaw, node.name) : node.name;
+      const dirRelSlug = relPathSlug ? path.join(relPathSlug, outputName) : outputName;
+      const destDir = path.join(docsDir, dirRelSlug);
       ensureDir(destDir);
 
       if (node.hasIndexMd) {
-        const srcIndex = path.join(wikiRoot, relPath, node.name + '.md');
-        const destIndex = path.join(docsDir, dirRel, 'index.md');
+        const srcIndex = path.join(wikiRoot, relPathRaw, node.name + '.md');
+        const destIndex = path.join(docsDir, dirRelSlug, 'index.md');
         if (fs.existsSync(srcIndex)) copyMdFile(srcIndex, destIndex);
       }
 
-      copyFolderContents(wikiRoot, docsDir, dirRel, attachmentFilter);
-      copyTree(wikiRoot, docsDir, node.children, attachmentFilter, dirRel);
+      copyFolderContents(wikiRoot, docsDir, dirRelRaw, dirRelSlug, attachmentFilter);
+      copyTree(wikiRoot, docsDir, node.children, attachmentFilter, dirRelRaw, dirRelSlug);
     }
   }
 }
