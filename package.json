@@ -10,7 +10,8 @@
     "build": "tsup src/cli.ts --format esm --platform node --dts",
     "prepublishOnly": "npm run build",
     "start": "node dist/cli.js",
-    "dev": "tsx src/cli.ts"
+    "dev": "tsx src/cli.ts",
+    "test": "node --import tsx --test test/slug.test.ts"
   },
   "files": [
     "dist",
