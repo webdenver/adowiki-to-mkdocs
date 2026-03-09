@@ -1,6 +1,6 @@
 {
   "name": "adowiki-to-mkdocs",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "CLI to convert Azure DevOps project wiki to MkDocs format",
   "type": "module",
   "bin": {
@@ -11,7 +11,7 @@
     "prepublishOnly": "npm run build",
     "start": "node dist/cli.js",
     "dev": "tsx src/cli.ts",
-    "test": "node --import tsx --test test/slug.test.ts"
+    "test": "node --import tsx --test test/*.test.ts"
   },
   "files": [
     "dist",
