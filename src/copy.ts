@@ -1,6 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { nameToTitle } from './nav';
 import { getOutputName } from './slug';
+import { transformAdoMarkdown } from './transform';
+import type { SubpageLink } from './transform';
 import type { TreeNode } from './types';
 
 /**
@@ -34,11 +37,18 @@ function copyFile(src: string, dest: string): void {
 }
 
 /**
- * Copy a single file's content to dest (for section index we write content to index.md).
+ * Copy a single .md file to dest, transforming ADO [[_TOC_]] / [[_TOSP_]] for MkDocs.
+ * subpageLinks: optional list for [[_TOSP_]] replacement (section index pages only).
  */
-function copyMdFile(src: string, dest: string): void {
+function copyMdFile(
+  src: string,
+  dest: string,
+  subpageLinks?: SubpageLink[]
+): void {
   ensureDir(path.dirname(dest));
-  fs.copyFileSync(src, dest);
+  const content = fs.readFileSync(src, 'utf-8');
+  const transformed = transformAdoMarkdown(content, subpageLinks);
+  fs.writeFileSync(dest, transformed, 'utf-8');
 }
 
 /**
@@ -67,6 +77,11 @@ function copyFolderContents(
       } else {
         copyDirRecursive(srcFull, destFull);
       }
+    } else if (e.name.endsWith('.md')) {
+      ensureDir(path.dirname(destFull));
+      const content = fs.readFileSync(srcFull, 'utf-8');
+      const transformed = transformAdoMarkdown(content);
+      fs.writeFileSync(destFull, transformed, 'utf-8');
     } else {
       copyFile(srcFull, destFull);
     }
@@ -114,7 +129,11 @@ export function copyTree(
       if (node.hasIndexMd) {
         const srcIndex = path.join(wikiRoot, relPathRaw, node.name + '.md');
         const destIndex = path.join(docsDir, dirRelSlug, 'index.md');
-        if (fs.existsSync(srcIndex)) copyMdFile(srcIndex, destIndex);
+        const subpageLinks: SubpageLink[] = node.children.map((child) => ({
+          title: nameToTitle(child.name),
+          path: getOutputName(child) + (child.type === 'file' ? '.md' : '/index.md'),
+        }));
+        if (fs.existsSync(srcIndex)) copyMdFile(srcIndex, destIndex, subpageLinks);
       }
 
       copyFolderContents(wikiRoot, docsDir, dirRelRaw, dirRelSlug, attachmentFilter);
