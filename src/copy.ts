@@ -52,7 +52,8 @@ function copyMdFile(
 }
 
 /**
- * Copy contents of a directory except .order. Copies .md files, .images, and subdirs recursively.
+ * Copy contents of a directory except .order. Copies .md files, .images (recursively), and other files.
+ * Wiki page subfolders are not copied here; copyTree creates them with slug names.
  * dirRelPathRaw: path from wiki root to current folder (raw names). dirRelPathSlug: path in docs (slug names).
  */
 function copyFolderContents(
@@ -74,9 +75,8 @@ function copyFolderContents(
     if (e.isDirectory()) {
       if (e.name === '.images') {
         copyDirRecursive(srcFull, destFull);
-      } else {
-        copyDirRecursive(srcFull, destFull);
       }
+      // else: wiki page subfolder — skip; copyTree will create it with slug name
     } else if (e.name.endsWith('.md')) {
       ensureDir(path.dirname(destFull));
       const content = fs.readFileSync(srcFull, 'utf-8');
