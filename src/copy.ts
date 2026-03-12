@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import ignore from 'ignore';
+import { buildLinkRewriteMap } from './link-map';
 import { nameToTitle } from './nav';
 import { getOutputName } from './slug';
 import { transformAdoMarkdown } from './transform';
@@ -54,15 +55,19 @@ function copyFile(src: string, dest: string): void {
 /**
  * Copy a single .md file to dest, transforming ADO [[_TOC_]] / [[_TOSP_]] for MkDocs.
  * subpageLinks: optional list for [[_TOSP_]] replacement (section index pages only).
+ * linkRewriteMap: optional map to rewrite in-content links to slug-based paths.
+ * currentPageSlugPath: optional path from docs root to this .md file (e.g. Project-details/Introduction.md); when set, rewritten links are emitted relative to this page.
  */
 function copyMdFile(
   src: string,
   dest: string,
-  subpageLinks?: SubpageLink[]
+  subpageLinks?: SubpageLink[],
+  linkRewriteMap?: Map<string, string>,
+  currentPageSlugPath?: string
 ): void {
   ensureDir(path.dirname(dest));
   const content = fs.readFileSync(src, 'utf-8');
-  const transformed = transformAdoMarkdown(content, subpageLinks);
+  const transformed = transformAdoMarkdown(content, subpageLinks, linkRewriteMap, currentPageSlugPath);
   fs.writeFileSync(dest, transformed, 'utf-8');
 }
 
@@ -124,6 +129,7 @@ function copyDirRecursive(src: string, dest: string): void {
 /**
  * Copy tree of pages to docsDir. Optionally only copy attachment files listed in attachmentFilter (when in single-page mode).
  * relPathRaw/relPathSlug: path from wiki root / docs root to current folder (raw names for source, slug for dest).
+ * linkRewriteMap: optional map for rewriting in-content links to slug paths (built once at root, passed through).
  */
 export function copyTree(
   wikiRoot: string,
@@ -132,14 +138,16 @@ export function copyTree(
   attachmentFilter?: Set<string>,
   includeExtraFilesPatterns: string[] = [],
   relPathRaw: string = '',
-  relPathSlug: string = ''
+  relPathSlug: string = '',
+  linkRewriteMap?: Map<string, string>
 ): void {
   for (const node of tree) {
     const outputName = getOutputName(node);
     if (node.type === 'file') {
       const srcMd = path.join(wikiRoot, relPathRaw, node.name + '.md');
       const destMd = path.join(docsDir, relPathSlug, outputName + '.md');
-      if (fs.existsSync(srcMd)) copyMdFile(srcMd, destMd);
+      const currentPageSlugPath = relPathSlug ? `${relPathSlug}/${outputName}.md` : `${outputName}.md`;
+      if (fs.existsSync(srcMd)) copyMdFile(srcMd, destMd, undefined, linkRewriteMap, currentPageSlugPath);
     } else {
       const dirRelRaw = relPathRaw ? path.join(relPathRaw, node.name) : node.name;
       const dirRelSlug = relPathSlug ? path.join(relPathSlug, outputName) : outputName;
@@ -153,11 +161,12 @@ export function copyTree(
           title: nameToTitle(child.name),
           path: getOutputName(child) + (child.type === 'file' ? '.md' : '/index.md'),
         }));
-        if (fs.existsSync(srcIndex)) copyMdFile(srcIndex, destIndex, subpageLinks);
+        const currentPageSlugPath = `${dirRelSlug}/index.md`;
+        if (fs.existsSync(srcIndex)) copyMdFile(srcIndex, destIndex, subpageLinks, linkRewriteMap, currentPageSlugPath);
       }
 
       copyFolderContents(wikiRoot, docsDir, dirRelRaw, dirRelSlug, includeExtraFilesPatterns, attachmentFilter);
-      copyTree(wikiRoot, docsDir, node.children, attachmentFilter, includeExtraFilesPatterns, dirRelRaw, dirRelSlug);
+      copyTree(wikiRoot, docsDir, node.children, attachmentFilter, includeExtraFilesPatterns, dirRelRaw, dirRelSlug, linkRewriteMap);
     }
   }
 }
