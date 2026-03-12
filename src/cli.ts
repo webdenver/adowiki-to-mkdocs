@@ -12,6 +12,7 @@ import {
   copyAttachments,
   collectIncludedMdPaths,
 } from './copy';
+import { buildLinkRewriteMap } from './link-map';
 import { collectAttachmentPathsFromFiles } from './attachments';
 import { buildNav } from './nav';
 import { generateIndexMd } from './index-md';
@@ -47,7 +48,8 @@ function run(options: CliOptions): void {
   }
 
   fs.mkdirSync(docsDir, { recursive: true });
-  copyTree(wikiRoot, docsDir, tree, attachmentFilter, options.includeExtraFiles);
+  const linkRewriteMap = buildLinkRewriteMap(tree);
+  copyTree(wikiRoot, docsDir, tree, attachmentFilter, options.includeExtraFiles, '', '', linkRewriteMap);
   copyAttachments(wikiRoot, docsDir, attachmentFilter);
 
   const { nav, topLevel } = buildNav(tree);

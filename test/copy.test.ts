@@ -4,6 +4,7 @@ import * as os from 'node:os';
 import assert from 'node:assert';
 import { describe, it } from 'node:test';
 import { copyTree, createIncludeExtraFilesFilter } from '../src/copy.js';
+import { buildLinkRewriteMap } from '../src/link-map.js';
 import { buildTree } from '../src/order.js';
 import { assignOutputSlugs } from '../src/slug.js';
 import { buildMkdocsYaml } from '../src/mkdocs-config.js';
@@ -116,5 +117,66 @@ describe('buildMkdocsYaml exclude_docs with includeExtraFiles', () => {
     });
     assert.ok(yaml.includes('!.attachments/'));
     assert.ok(!yaml.includes('!.images/'), 'should not hardcode .images when includeExtraFiles empty');
+  });
+});
+
+describe('copyTree link rewrite (issue #12)', () => {
+  it('rewrites in-content links from raw page name to slug path for %2D-style names', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'adowiki-link-rewrite-'));
+    try {
+      const wikiRoot = path.join(tmpDir, 'wiki');
+      const docsDir = path.join(tmpDir, 'docs');
+      fs.mkdirSync(wikiRoot, { recursive: true });
+      fs.mkdirSync(docsDir, { recursive: true });
+      fs.writeFileSync(path.join(wikiRoot, '.order'), 'Home\nFoo--%2D-Bar\n', 'utf-8');
+      fs.writeFileSync(path.join(wikiRoot, 'Home.md'), '# Home\n\nSee [Guide](Foo--%2D-Bar.md) and [[Foo--%2D-Bar]].', 'utf-8');
+      fs.writeFileSync(path.join(wikiRoot, 'Foo--%2D-Bar.md'), '# Guide', 'utf-8');
+
+      const tree = buildTree(wikiRoot);
+      assignOutputSlugs(tree);
+      const linkRewriteMap = buildLinkRewriteMap(tree);
+      copyTree(wikiRoot, docsDir, tree, undefined, [], '', '', linkRewriteMap);
+
+      const homeOut = path.join(docsDir, 'Home.md');
+      assert.ok(fs.existsSync(homeOut));
+      const homeContent = fs.readFileSync(homeOut, 'utf-8');
+      assert.ok(homeContent.includes('](Foo-Bar.md)') || homeContent.includes('](./Foo-Bar.md)'), 'markdown link should use slug path (or relative)');
+      assert.ok(homeContent.includes('Foo-Bar.md'), 'wiki link should become markdown link with slug path (relative)');
+      assert.ok(!homeContent.includes('](Foo--%2D-Bar'), 'raw .md filename should not appear in link hrefs');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  it('emits relative links from a page inside a folder (e.g. ./Users-onboarding-guide.md)', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'adowiki-relative-folder-'));
+    try {
+      const wikiRoot = path.join(tmpDir, 'wiki');
+      const docsDir = path.join(tmpDir, 'docs');
+      fs.mkdirSync(wikiRoot, { recursive: true });
+      fs.mkdirSync(docsDir, { recursive: true });
+      fs.writeFileSync(path.join(wikiRoot, '.order'), 'Project-details\n', 'utf-8');
+      fs.mkdirSync(path.join(wikiRoot, 'Project-details'), { recursive: true });
+      fs.writeFileSync(path.join(wikiRoot, 'Project-details', '.order'), 'Introduction\nUsers-onboarding-%2D-guide\n', 'utf-8');
+      fs.writeFileSync(
+        path.join(wikiRoot, 'Project-details', 'Introduction.md'),
+        'See [Guide](./Users-onboarding-%2D-guide.md).',
+        'utf-8'
+      );
+      fs.writeFileSync(path.join(wikiRoot, 'Project-details', 'Users-onboarding-%2D-guide.md'), '# Guide', 'utf-8');
+
+      const tree = buildTree(wikiRoot);
+      assignOutputSlugs(tree);
+      const linkRewriteMap = buildLinkRewriteMap(tree);
+      copyTree(wikiRoot, docsDir, tree, undefined, [], '', '', linkRewriteMap);
+
+      const introOut = path.join(docsDir, 'Project-details', 'Introduction.md');
+      assert.ok(fs.existsSync(introOut));
+      const introContent = fs.readFileSync(introOut, 'utf-8');
+      assert.ok(introContent.includes('](./Users-onboarding-guide.md)'), 'link from folder page should be relative (./Users-onboarding-guide.md)');
+      assert.ok(!introContent.includes('Project-details/Users-onboarding-guide.md'), 'link should not be path from docs root');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 });

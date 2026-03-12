@@ -5,9 +5,9 @@ import type { TreeNode } from '../src/types.js';
 
 describe('nameToSlug', () => {
   it('decodes percent-encoded hyphen and produces safe path segment (no %2D in output)', () => {
-    const slug = nameToSlug('API-publishing-on-Gateway--%2D-Guide');
+    const slug = nameToSlug('Foo--%2D-Bar');
     assert.ok(!slug.includes('%'), 'slug must not contain percent-encoding');
-    assert.strictEqual(slug, 'API-publishing-on-Gateway-Guide');
+    assert.strictEqual(slug, 'Foo-Bar');
   });
 
   it('decodes %20 to dash after normalization', () => {

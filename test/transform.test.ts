@@ -63,4 +63,94 @@ describe('transformAdoMarkdown', () => {
     ]);
     assert.strictEqual(out, '- [A](a.md) x - [A](a.md)');
   });
+
+  describe('link rewrite with linkRewriteMap', () => {
+    it('rewrites markdown link with raw name to slug path', () => {
+      const map = new Map<string, string>([
+        ['Foo--%2D-Bar', 'Foo-Bar.md'],
+        ['Foo--%2D-Bar.md', 'Foo-Bar.md'],
+      ]);
+      const out = transformAdoMarkdown(
+        'See [Guide](Foo--%2D-Bar.md) for details.',
+        undefined,
+        map
+      );
+      assert.strictEqual(
+        out,
+        'See [Guide](Foo-Bar.md) for details.'
+      );
+    });
+
+    it('rewrites wiki link [[page]] to markdown link with slug path', () => {
+      const map = new Map<string, string>([
+        ['Foo--%2D-Bar', 'Foo-Bar.md'],
+      ]);
+      const out = transformAdoMarkdown(
+        'See [[Foo--%2D-Bar]].',
+        undefined,
+        map
+      );
+      assert.strictEqual(
+        out,
+        'See [Foo--%2D-Bar](Foo-Bar.md).'
+      );
+    });
+
+    it('rewrites wiki link [[page|text]] using display text', () => {
+      const map = new Map<string, string>([['Some-Page', 'Some-Page.md']]);
+      const out = transformAdoMarkdown('Go to [[Some-Page|here]].', undefined, map);
+      assert.strictEqual(out, 'Go to [here](Some-Page.md).');
+    });
+
+    it('leaves external URLs unchanged', () => {
+      const map = new Map<string, string>([['Local', 'Local.md']]);
+      const content = 'See [external](https://example.com/doc.md) and [local](Local.md).';
+      const out = transformAdoMarkdown(content, undefined, map);
+      assert.strictEqual(out, 'See [external](https://example.com/doc.md) and [local](Local.md).');
+    });
+
+    it('leaves .attachments/ links unchanged', () => {
+      const map = new Map<string, string>([['Page', 'Page.md']]);
+      const content = 'Image: ![x](.attachments/abc.png) and [page](Page.md).';
+      const out = transformAdoMarkdown(content, undefined, map);
+      assert.strictEqual(out, 'Image: ![x](.attachments/abc.png) and [page](Page.md).');
+    });
+
+    it('leaves anchor-only links unchanged', () => {
+      const map = new Map<string, string>([]);
+      const content = 'Jump [to section](#section).';
+      const out = transformAdoMarkdown(content, undefined, map);
+      assert.strictEqual(out, 'Jump [to section](#section).');
+    });
+
+    it('leaves [[_TOC_]] and [[_TOSP_]] unchanged when using map', () => {
+      const map = new Map<string, string>([]);
+      const out = transformAdoMarkdown('[[_TOC_]]\n\n[[_TOSP_]]', [], map);
+      assert.strictEqual(out, '[TOC]\n\n');
+    });
+
+    it('emits relative path when currentPageSlugPath is set', () => {
+      const map = new Map<string, string>([
+        ['Project-details/Users-onboarding-guide', 'Project-details/Users-onboarding-guide.md'],
+        ['Project-details/Users-onboarding-guide.md', 'Project-details/Users-onboarding-guide.md'],
+      ]);
+      const out = transformAdoMarkdown(
+        'See [Guide](Project-details/Users-onboarding-guide.md).',
+        undefined,
+        map,
+        'Project-details/Introduction.md'
+      );
+      assert.strictEqual(out, 'See [Guide](./Users-onboarding-guide.md).');
+    });
+
+    it('emits path from docs root when currentPageSlugPath is not set', () => {
+      const map = new Map<string, string>([['Project-details/Users-onboarding-guide.md', 'Project-details/Users-onboarding-guide.md']]);
+      const out = transformAdoMarkdown(
+        'See [Guide](Project-details/Users-onboarding-guide.md).',
+        undefined,
+        map
+      );
+      assert.strictEqual(out, 'See [Guide](Project-details/Users-onboarding-guide.md).');
+    });
+  });
 });
