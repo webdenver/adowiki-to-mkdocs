@@ -10,6 +10,25 @@ import { decodeLinkTarget, normalizeLinkTarget } from './link-utils';
 const ADO_TOC = '[[_TOC_]]';
 const ADO_TOSP = '[[_TOSP_]]';
 
+/** Same regex as rewriteMarkdownLinks: match ](url) or ](url "title") for both links and images. */
+const LINK_URL_REGEX = /\]\(([^\s)]+)(?:\s+[^)]*)?\)/g;
+
+/**
+ * Prefix every relative link URL in content with ../ (one more if already starting with ../).
+ * Skip absolute URLs, anchor-only (#...), and .attachments/. Used for section index content only.
+ */
+function prefixSectionIndexRelativeLinks(content: string): string {
+  return content.replace(LINK_URL_REGEX, (match, url: string) => {
+    const raw = url.trim();
+    if (/^https?:\/\//i.test(raw) || raw.startsWith('#') || raw.includes('.attachments/')) {
+      return match;
+    }
+    if (raw.startsWith('/')) return match;
+    const newUrl = '../' + raw;
+    return '](' + newUrl + match.slice(2 + url.length);
+  });
+}
+
 export interface SubpageLink {
   title: string;
   path: string;
@@ -50,17 +69,18 @@ function rewriteMarkdownLinks(
   map: Map<string, string>,
   currentPageSlugPath?: string
 ): string {
-  return content.replace(/\]\(([^\s)]+)(?:\s+[^)]*)?\)/g, (match, url: string) => {
+  return content.replace(LINK_URL_REGEX, (match, url: string) => {
     const raw = url.trim();
     if (/^https?:\/\//i.test(raw) || raw.startsWith('#') || raw.includes('.attachments/')) {
       return match;
     }
     const key = normalizeLinkTarget(raw);
-    const isRelative = !key.startsWith('/') && !key.includes('/');
-    const currentDir = currentPageSlugPath ? path.dirname(currentPageSlugPath) : '';
-    const resolvedPathFromRoot = currentPageSlugPath && isRelative
-      ? (currentDir ? currentDir + '/' + key : key)
-      : null;
+    const currentDir = currentPageSlugPath ? path.dirname(currentPageSlugPath).replace(/\\/g, '/') : '';
+    const isRelative = !raw.startsWith('/');
+    const resolvedPathFromRoot =
+      currentPageSlugPath && isRelative
+        ? path.posix.normalize(path.posix.join(currentDir, raw)).replace(/^\.\//, '')
+        : null;
     const slug = getSlugForTarget(map, key, resolvedPathFromRoot);
     if (slug === undefined) return match;
     const outPath = currentPageSlugPath ? relativePathFromCurrentPage(currentPageSlugPath, slug) : slug;
@@ -71,7 +91,11 @@ function rewriteMarkdownLinks(
 /**
  * Replace ADO wiki TOC/TOSP tags with MkDocs-compatible content.
  * - [[_TOC_]] → [TOC] (MkDocs in-page table of contents)
- * - [[_TOSP_]] → markdown list of links if subpageLinks provided and non-empty; otherwise empty string
+ * - If isSectionIndex, prefix every relative link with ../ (after TOC, before TOSP)
+ * - [[_TOSP_]] → markdown list of links if subpageLinks provided and non-empty; otherwise empty string.
+ *   subpageLinks are typically the immediate children of the current page only (one level). So the root
+ *   index lists only top-level sections (e.g. Project-details/index.md), and each section index lists
+ *   its own children (e.g. Introduction.md); deeper pages do not appear in the root index.
  * - If linkRewriteMap is provided, rewrites in-content ](url) links to slug-based paths
  * - If currentPageSlugPath is also provided, rewritten links are emitted relative to that page
  */
@@ -79,10 +103,14 @@ export function transformAdoMarkdown(
   content: string,
   subpageLinks?: SubpageLink[],
   linkRewriteMap?: Map<string, string>,
-  currentPageSlugPath?: CurrentPageSlugPath
+  currentPageSlugPath?: CurrentPageSlugPath,
+  isSectionIndex?: boolean
 ): string {
   let out = content;
   out = out.split(ADO_TOC).join('[TOC]');
+  if (isSectionIndex) {
+    out = prefixSectionIndexRelativeLinks(out);
+  }
   const tospReplacement =
     subpageLinks && subpageLinks.length > 0
       ? subpageLinks.map(({ title, path }) => `- [${title}](${path})`).join('\n')

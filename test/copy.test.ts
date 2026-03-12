@@ -180,3 +180,38 @@ describe('copyTree link rewrite (issue #12)', () => {
     }
   });
 });
+
+describe('copyTree section index relative links', () => {
+  it('writes section index with correct relative links to sibling and subpage links from _TOSP', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'adowiki-section-index-'));
+    try {
+      const wikiRoot = path.join(tmpDir, 'wiki');
+      const docsDir = path.join(tmpDir, 'docs');
+      fs.mkdirSync(wikiRoot, { recursive: true });
+      fs.mkdirSync(docsDir, { recursive: true });
+      fs.writeFileSync(path.join(wikiRoot, '.order'), 'Section\nSibling\n', 'utf-8');
+      fs.writeFileSync(
+        path.join(wikiRoot, 'Section.md'),
+        '# Section\n\nLink to [sibling](Sibling.md).\n\n[[_TOSP_]]',
+        'utf-8'
+      );
+      fs.mkdirSync(path.join(wikiRoot, 'Section'), { recursive: true });
+      fs.writeFileSync(path.join(wikiRoot, 'Section', '.order'), 'Sub\n', 'utf-8');
+      fs.writeFileSync(path.join(wikiRoot, 'Section', 'Sub.md'), '# Sub', 'utf-8');
+      fs.writeFileSync(path.join(wikiRoot, 'Sibling.md'), '# Sibling', 'utf-8');
+
+      const tree = buildTree(wikiRoot);
+      assignOutputSlugs(tree);
+      const linkRewriteMap = buildLinkRewriteMap(tree);
+      copyTree(wikiRoot, docsDir, tree, undefined, [], '', '', linkRewriteMap);
+
+      const sectionIndexPath = path.join(docsDir, 'Section', 'index.md');
+      assert.ok(fs.existsSync(sectionIndexPath), 'Section/index.md should exist');
+      const content = fs.readFileSync(sectionIndexPath, 'utf-8');
+      assert.ok(content.includes('../Sibling.md'), 'link to sibling should be ../Sibling.md from Section/index.md');
+      assert.ok(content.includes('Sub.md') && content.includes('Sub'), '_TOSP_ should produce relative link to subpage');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+});

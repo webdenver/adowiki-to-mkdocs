@@ -131,5 +131,80 @@ describe('transformAdoMarkdown', () => {
       );
       assert.strictEqual(out, 'See [Guide](Project-details/Users-onboarding-guide.md).');
     });
+
+    it('resolves relative link with ../ from section index for map lookup and emits correct relative path', () => {
+      const map = new Map<string, string>([
+        ['Parent3/page-3', 'Parent3/page-3.md'],
+        ['Parent3/page-3.md', 'Parent3/page-3.md'],
+      ]);
+      const out = transformAdoMarkdown(
+        'See [Page](../../Parent3/page-3.md).',
+        undefined,
+        map,
+        'Parent/Parent2/index.md'
+      );
+      assert.strictEqual(out, 'See [Page](../../Parent3/page-3.md).');
+    });
+  });
+
+  describe('section index prefix (isSectionIndex)', () => {
+    it('prefixes relative links with ../ when isSectionIndex is true', () => {
+      const out = transformAdoMarkdown(
+        'Link to [sibling](Other.md) and ![img](pic.png).',
+        undefined,
+        undefined,
+        undefined,
+        true
+      );
+      assert.strictEqual(
+        out,
+        'Link to [sibling](../Other.md) and ![img](../pic.png).'
+      );
+    });
+
+    it('adds one more ../ when link already starts with ../ (isSectionIndex true)', () => {
+      const out = transformAdoMarkdown(
+        'See [up](../Sibling.md).',
+        undefined,
+        undefined,
+        undefined,
+        true
+      );
+      assert.strictEqual(out, 'See [up](../../Sibling.md).');
+    });
+
+    it('does not prefix external, anchor, or .attachments/ when isSectionIndex true', () => {
+      const out = transformAdoMarkdown(
+        ' [a](https://x.com) [b](#s) [c](.attachments/x.png) [d](Local.md) ',
+        undefined,
+        undefined,
+        undefined,
+        true
+      );
+      assert.strictEqual(
+        out,
+        ' [a](https://x.com) [b](#s) [c](.attachments/x.png) [d](../Local.md) '
+      );
+    });
+
+    it('does not prefix relative links when isSectionIndex is false or omitted', () => {
+      const content = 'Link [here](Other.md).';
+      assert.strictEqual(transformAdoMarkdown(content, undefined, undefined, undefined, false), content);
+      assert.strictEqual(transformAdoMarkdown(content), content);
+    });
+
+    it('applies prefix before [[_TOSP_]] so generated subpage links are not prefixed', () => {
+      const out = transformAdoMarkdown(
+        'Content [link](Sibling.md).\n\n[[_TOSP_]]',
+        [{ title: 'Child', path: 'Child.md' }],
+        undefined,
+        undefined,
+        true
+      );
+      assert.strictEqual(
+        out,
+        'Content [link](../Sibling.md).\n\n- [Child](Child.md)'
+      );
+    });
   });
 });
