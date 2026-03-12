@@ -1,10 +1,25 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import ignore from 'ignore';
 import { nameToTitle } from './nav';
 import { getOutputName } from './slug';
 import { transformAdoMarkdown } from './transform';
 import type { SubpageLink } from './transform';
 import type { TreeNode } from './types';
+
+/**
+ * Create a filter that returns true if the path is "included" (matches at least one of the allow-list patterns).
+ * Uses gitignore-style semantics: we add a rule to ignore everything (*) then !pattern for each include pattern.
+ * Exported for tests.
+ */
+export function createIncludeExtraFilesFilter(patterns: string[]): (entryPath: string) => boolean {
+  if (patterns.length === 0) return () => false;
+  const ig = ignore().add('*');
+  for (const p of patterns) {
+    ig.add('!' + p);
+  }
+  return (entryPath: string) => !ig.ignores(entryPath);
+}
 
 /**
  * Collect all included .md file paths (absolute) that will be copied, for attachment scanning.
@@ -52,7 +67,8 @@ function copyMdFile(
 }
 
 /**
- * Copy contents of a directory except .order. Copies .md files, .images (recursively), and other files.
+ * Copy contents of a directory except .order. Only copies entries that match includeExtraFilesPatterns (allow-list).
+ * When patterns is empty, copies nothing here (.md pages are still copied by copyTree for file nodes).
  * Wiki page subfolders are not copied here; copyTree creates them with slug names.
  * dirRelPathRaw: path from wiki root to current folder (raw names). dirRelPathSlug: path in docs (slug names).
  */
@@ -61,11 +77,14 @@ function copyFolderContents(
   docsDir: string,
   dirRelPathRaw: string,
   dirRelPathSlug: string,
+  includeExtraFilesPatterns: string[],
   attachmentFilter?: Set<string>
 ): void {
   const srcDir = path.join(wikiRoot, dirRelPathRaw);
   const destDir = path.join(docsDir, dirRelPathSlug);
   if (!fs.existsSync(srcDir)) return;
+
+  const isIncluded = createIncludeExtraFilesFilter(includeExtraFilesPatterns);
 
   const entries = fs.readdirSync(srcDir, { withFileTypes: true });
   for (const e of entries) {
@@ -73,16 +92,16 @@ function copyFolderContents(
     const srcFull = path.join(srcDir, e.name);
     const destFull = path.join(destDir, e.name);
     if (e.isDirectory()) {
-      if (e.name === '.images') {
+      // Include if entry name or "name/" matches any pattern (gitignore-style .images/ etc.)
+      if (isIncluded(e.name) || isIncluded(e.name + '/')) {
         copyDirRecursive(srcFull, destFull);
       }
-      // else: wiki page subfolder — skip; copyTree will create it with slug name
-    } else if (e.name.endsWith('.md')) {
-      ensureDir(path.dirname(destFull));
-      const content = fs.readFileSync(srcFull, 'utf-8');
-      const transformed = transformAdoMarkdown(content);
-      fs.writeFileSync(destFull, transformed, 'utf-8');
+      // else: wiki page subfolder or not in allow-list — skip
     } else {
+      if (!isIncluded(e.name)) continue;
+      // Skip .md files: they are always copied by copyTree (file nodes or folder index)
+      if (e.name.endsWith('.md')) continue;
+      ensureDir(path.dirname(destFull));
       copyFile(srcFull, destFull);
     }
   }
@@ -111,6 +130,7 @@ export function copyTree(
   docsDir: string,
   tree: TreeNode[],
   attachmentFilter?: Set<string>,
+  includeExtraFilesPatterns: string[] = [],
   relPathRaw: string = '',
   relPathSlug: string = ''
 ): void {
@@ -136,8 +156,8 @@ export function copyTree(
         if (fs.existsSync(srcIndex)) copyMdFile(srcIndex, destIndex, subpageLinks);
       }
 
-      copyFolderContents(wikiRoot, docsDir, dirRelRaw, dirRelSlug, attachmentFilter);
-      copyTree(wikiRoot, docsDir, node.children, attachmentFilter, dirRelRaw, dirRelSlug);
+      copyFolderContents(wikiRoot, docsDir, dirRelRaw, dirRelSlug, includeExtraFilesPatterns, attachmentFilter);
+      copyTree(wikiRoot, docsDir, node.children, attachmentFilter, includeExtraFilesPatterns, dirRelRaw, dirRelSlug);
     }
   }
 }
