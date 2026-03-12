@@ -42,7 +42,7 @@ npx adowiki-to-mkdocs --input <wiki-repo> --output <dir> --site-name "<name>" [o
 | `--output` | Yes | Directory where `docs/` and `mkdocs.yml` will be created. |
 | `--site-name` | Yes | Value for `site_name` in `mkdocs.yml`. |
 | `--page` | No | If set, only include this page and its subpages (by name from `.order`). |
-| `--do-not-exclude-folder` | No | Add a folder to `exclude_docs` with `!` so MkDocs keeps it. Can be repeated. |
+| `--include-extra-files` | No | Gitignore-style pattern for extra content to copy from each folder (e.g. `.images/`, `*.md`). Only matching entries are copied. Can be repeated. Generated `mkdocs.yml` will add each value prefixed with `!` to `exclude_docs`. |
 | `--plugin` | No | Add a plugin to `mkdocs.yml` (e.g. `search`). Can be repeated. |
 
 ### Examples
@@ -62,7 +62,13 @@ adowiki-to-mkdocs --input ./test-data/test-project.wiki --output ./out --site-na
 With plugins and extra folders kept:
 
 ```bash
-adowiki-to-mkdocs --input ./wiki --output ./site --site-name "Docs" --plugin search --do-not-exclude-folder .attachments
+adowiki-to-mkdocs --input ./wiki --output ./site --site-name "Docs" --plugin search
+```
+
+With extra content (e.g. `.images` folders) copied and included in MkDocs:
+
+```bash
+adowiki-to-mkdocs --input ./wiki --output ./site --site-name "Docs" --include-extra-files '.images/' --include-extra-files '.images/'
 ```
 
 ## What it does
@@ -70,9 +76,9 @@ adowiki-to-mkdocs --input ./wiki --output ./site --site-name "Docs" --plugin sea
 - Reads **`.order`** at the wiki root and in each folder to determine page order.
 - **Copies** all page content (`.md` and folder structure) into `output/docs/`, excluding `.order`. For a page that has subpages, the parent page content is written as `Folder/index.md` (section index).
 - Copies **`.attachments`** into `docs/.attachments/`. With `--page`, only attachment files referenced in the included markdown are copied.
-- Copies **`.images`** next to each page folder so relative image links work.
+- With `--include-extra-files`, copies extra content (e.g. **`.images`** folders) that matches the given gitignore-style patterns. Without it, no extra files or folders are copied from page directories (only the ordered pages are copied).
 - Generates **`docs/index.md`** as a list of top-level pages (with links) and adds it to the nav as Home.
-- Generates **`mkdocs.yml`** with Material theme, `navigation.indexes`, and `exclude_docs` so `.attachments` and `.images` are included in the MkDocs build.
+- Generates **`mkdocs.yml`** with Material theme, `navigation.indexes`, and `exclude_docs` so `.attachments` and any `--include-extra-files` patterns are included in the MkDocs build.
 
 Markdown is copied as-is; no link rewriting. Links to `/.attachments/...` and `.images/...` work when `.attachments` and `.images` are under `docs/`.
 
@@ -94,7 +100,7 @@ cd out && mkdocs serve
 
 ## ADO wiki structure
 
-Expects the [Azure DevOps wiki Git layout](https://learn.microsoft.com/en-us/azure/devops/project/wiki/wiki-file-structure): root `.order`, `.attachments/`, and for each page either `Page-Name.md` and/or `Page-Name/` (folder with subpages and its own `.order`). Page folders can contain `.images/` for local images.
+Expects the [Azure DevOps wiki Git layout](https://learn.microsoft.com/en-us/azure/devops/project/wiki/wiki-file-structure): root `.order`, `.attachments/`, and for each page either `Page-Name.md` and/or `Page-Name/` (folder with subpages and its own `.order`). Page folders can contain `.images/` for local images; use `--include-extra-files '.images/'` (and `'**/.images/'` if needed) to copy them.
 
 ---
 

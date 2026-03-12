@@ -47,7 +47,7 @@ function run(options: CliOptions): void {
   }
 
   fs.mkdirSync(docsDir, { recursive: true });
-  copyTree(wikiRoot, docsDir, tree, attachmentFilter);
+  copyTree(wikiRoot, docsDir, tree, attachmentFilter, options.includeExtraFiles);
   copyAttachments(wikiRoot, docsDir, attachmentFilter);
 
   const { nav, topLevel } = buildNav(tree);
@@ -81,10 +81,11 @@ const argv = yargs(hideBin(process.argv))
     type: 'string',
     description: 'Only include this page and its subpages',
   })
-  .option('do-not-exclude-folder', {
+  .option('include-extra-files', {
     type: 'array',
     string: true,
-    description: 'Add to exclude_docs with ! to keep these folders',
+    description:
+      'Gitignore-style pattern for extra content to copy from each folder (e.g. .images/, *.md). Can be repeated. Only matching entries are copied.',
     default: [],
   })
   .option('plugin', {
@@ -100,7 +101,7 @@ const options: CliOptions = {
   output: argv.output,
   siteName: argv['site-name'],
   page: argv.page,
-  doNotExcludeFolder: argv['do-not-exclude-folder'] ?? [],
+  includeExtraFiles: argv['include-extra-files'] ?? [],
   plugin: argv.plugin ?? [],
 };
 

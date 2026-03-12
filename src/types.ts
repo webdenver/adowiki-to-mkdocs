@@ -25,7 +25,7 @@ export interface CliOptions {
   output: string;
   siteName: string;
   page?: string;
-  doNotExcludeFolder: string[];
+  includeExtraFiles: string[];
   plugin: string[];
 }
 

@@ -62,17 +62,12 @@ export function buildMkdocsYaml(
     }
   }
 
-  // Always add exclude_docs so MkDocs includes dot-prefixed .attachments and .images (default excludes them)
+  // Always add exclude_docs so MkDocs includes .attachments and any include-extra-files patterns (default excludes dot-prefixed)
   sections.push('');
   sections.push('exclude_docs: |');
   sections.push('  !.attachments/');
-  sections.push('  !.images/');
-  sections.push('  !**/.images/');
-  for (const folder of options.doNotExcludeFolder) {
-    const normalized = folder.endsWith('/') ? folder.slice(0, -1) : folder;
-    if (normalized !== '.attachments' && normalized !== '.images') {
-      sections.push(`  !${folder.endsWith('/') ? folder : folder + '/'}`);
-    }
+  for (const pattern of options.includeExtraFiles) {
+    sections.push(`  !${pattern}`);
   }
 
   return sections.join('\n') + '\n';
