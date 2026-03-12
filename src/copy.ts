@@ -57,17 +57,19 @@ function copyFile(src: string, dest: string): void {
  * subpageLinks: optional list for [[_TOSP_]] replacement (section index pages only).
  * linkRewriteMap: optional map to rewrite in-content links to slug-based paths.
  * currentPageSlugPath: optional path from docs root to this .md file (e.g. Project-details/Introduction.md); when set, rewritten links are emitted relative to this page.
+ * isSectionIndex: when true, prefix relative links in content with ../ (for content written to Parent/index.md).
  */
 function copyMdFile(
   src: string,
   dest: string,
   subpageLinks?: SubpageLink[],
   linkRewriteMap?: Map<string, string>,
-  currentPageSlugPath?: string
+  currentPageSlugPath?: string,
+  isSectionIndex?: boolean
 ): void {
   ensureDir(path.dirname(dest));
   const content = fs.readFileSync(src, 'utf-8');
-  const transformed = transformAdoMarkdown(content, subpageLinks, linkRewriteMap, currentPageSlugPath);
+  const transformed = transformAdoMarkdown(content, subpageLinks, linkRewriteMap, currentPageSlugPath, isSectionIndex);
   fs.writeFileSync(dest, transformed, 'utf-8');
 }
 
@@ -157,12 +159,18 @@ export function copyTree(
       if (node.hasIndexMd) {
         const srcIndex = path.join(wikiRoot, relPathRaw, node.name + '.md');
         const destIndex = path.join(docsDir, dirRelSlug, 'index.md');
+        // [[_TOSP_]] is populated from immediate children only. Root index therefore lists only
+        // top-level sections (e.g. Project-details/index.md); section indexes list their own
+        // children (e.g. Project-details/index.md lists Introduction.md, etc.).
+        // Optional extensions (if deeper-level links are desired):
+        // - Flattened: build a recursive list of all descendant nodes (file → .md, dir → /index.md) and pass that as subpageLinks; paths must be relative to current section (e.g. Introduction.md for root, or subdir/Page.md).
+        // - Nested: extend SubpageLink to support nested items and have transformAdoMarkdown render indented bullets; build a tree here from node.children (and their children) instead of a flat list.
         const subpageLinks: SubpageLink[] = node.children.map((child) => ({
           title: nameToTitle(child.name),
           path: getOutputName(child) + (child.type === 'file' ? '.md' : '/index.md'),
         }));
         const currentPageSlugPath = `${dirRelSlug}/index.md`;
-        if (fs.existsSync(srcIndex)) copyMdFile(srcIndex, destIndex, subpageLinks, linkRewriteMap, currentPageSlugPath);
+        if (fs.existsSync(srcIndex)) copyMdFile(srcIndex, destIndex, subpageLinks, linkRewriteMap, currentPageSlugPath, true);
       }
 
       copyFolderContents(wikiRoot, docsDir, dirRelRaw, dirRelSlug, includeExtraFilesPatterns, attachmentFilter);
