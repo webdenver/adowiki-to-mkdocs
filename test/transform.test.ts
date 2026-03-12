@@ -81,27 +81,6 @@ describe('transformAdoMarkdown', () => {
       );
     });
 
-    it('rewrites wiki link [[page]] to markdown link with slug path', () => {
-      const map = new Map<string, string>([
-        ['Foo--%2D-Bar', 'Foo-Bar.md'],
-      ]);
-      const out = transformAdoMarkdown(
-        'See [[Foo--%2D-Bar]].',
-        undefined,
-        map
-      );
-      assert.strictEqual(
-        out,
-        'See [Foo--%2D-Bar](Foo-Bar.md).'
-      );
-    });
-
-    it('rewrites wiki link [[page|text]] using display text', () => {
-      const map = new Map<string, string>([['Some-Page', 'Some-Page.md']]);
-      const out = transformAdoMarkdown('Go to [[Some-Page|here]].', undefined, map);
-      assert.strictEqual(out, 'Go to [here](Some-Page.md).');
-    });
-
     it('leaves external URLs unchanged', () => {
       const map = new Map<string, string>([['Local', 'Local.md']]);
       const content = 'See [external](https://example.com/doc.md) and [local](Local.md).';

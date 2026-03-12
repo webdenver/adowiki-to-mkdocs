@@ -68,36 +68,11 @@ function rewriteMarkdownLinks(
   });
 }
 
-/** Rewrite ADO wiki links [[page]] or [[page|text]] to markdown links with slug path (or relative when currentPageSlugPath set). */
-function rewriteWikiLinks(
-  content: string,
-  map: Map<string, string>,
-  currentPageSlugPath?: string
-): string {
-  return content.replace(/\[\[([^\]\|]+)(?:\|([^\]]*))?\]\]/g, (match, page: string, text: string | undefined) => {
-    const raw = page.trim();
-    if (raw === '_TOC_' || raw === '_TOSP_') return match;
-    const key = normalizeLinkTarget(raw);
-    const isRelative = !key.startsWith('/') && !key.includes('/');
-    const currentDir = currentPageSlugPath ? path.dirname(currentPageSlugPath) : '';
-    const resolvedPathFromRoot = currentPageSlugPath && isRelative
-      ? (currentDir ? currentDir + '/' + key : key)
-      : null;
-    const slug = getSlugForTarget(map, key, resolvedPathFromRoot)
-      ?? map.get(key + '.md')
-      ?? (resolvedPathFromRoot ? map.get(resolvedPathFromRoot + '.md') : undefined);
-    if (slug === undefined) return match;
-    const label = (text ?? raw).trim() || raw;
-    const outPath = currentPageSlugPath ? relativePathFromCurrentPage(currentPageSlugPath, slug) : slug;
-    return `[${label}](${outPath})`;
-  });
-}
-
 /**
  * Replace ADO wiki TOC/TOSP tags with MkDocs-compatible content.
  * - [[_TOC_]] → [TOC] (MkDocs in-page table of contents)
  * - [[_TOSP_]] → markdown list of links if subpageLinks provided and non-empty; otherwise empty string
- * - If linkRewriteMap is provided, rewrites in-content ](url) and [[page]] links to slug-based paths
+ * - If linkRewriteMap is provided, rewrites in-content ](url) links to slug-based paths
  * - If currentPageSlugPath is also provided, rewritten links are emitted relative to that page
  */
 export function transformAdoMarkdown(
@@ -115,7 +90,6 @@ export function transformAdoMarkdown(
   out = out.split(ADO_TOSP).join(tospReplacement);
 
   if (linkRewriteMap && linkRewriteMap.size > 0) {
-    out = rewriteWikiLinks(out, linkRewriteMap, currentPageSlugPath);
     out = rewriteMarkdownLinks(out, linkRewriteMap, currentPageSlugPath);
   }
   return out;

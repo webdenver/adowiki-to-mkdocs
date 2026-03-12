@@ -129,7 +129,7 @@ describe('copyTree link rewrite (issue #12)', () => {
       fs.mkdirSync(wikiRoot, { recursive: true });
       fs.mkdirSync(docsDir, { recursive: true });
       fs.writeFileSync(path.join(wikiRoot, '.order'), 'Home\nFoo--%2D-Bar\n', 'utf-8');
-      fs.writeFileSync(path.join(wikiRoot, 'Home.md'), '# Home\n\nSee [Guide](Foo--%2D-Bar.md) and [[Foo--%2D-Bar]].', 'utf-8');
+      fs.writeFileSync(path.join(wikiRoot, 'Home.md'), '# Home\n\nSee [Guide](Foo--%2D-Bar.md) for details.', 'utf-8');
       fs.writeFileSync(path.join(wikiRoot, 'Foo--%2D-Bar.md'), '# Guide', 'utf-8');
 
       const tree = buildTree(wikiRoot);
@@ -141,7 +141,7 @@ describe('copyTree link rewrite (issue #12)', () => {
       assert.ok(fs.existsSync(homeOut));
       const homeContent = fs.readFileSync(homeOut, 'utf-8');
       assert.ok(homeContent.includes('](Foo-Bar.md)') || homeContent.includes('](./Foo-Bar.md)'), 'markdown link should use slug path (or relative)');
-      assert.ok(homeContent.includes('Foo-Bar.md'), 'wiki link should become markdown link with slug path (relative)');
+      assert.ok(homeContent.includes('Foo-Bar.md'), 'markdown link should use slug path');
       assert.ok(!homeContent.includes('](Foo--%2D-Bar'), 'raw .md filename should not appear in link hrefs');
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
