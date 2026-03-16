@@ -15,3 +15,8 @@ export function decodeLinkTarget(s: string): string {
     return s;
   }
 }
+
+/** Strip CommonMark backslash escapes in a link destination (e.g. \( and \) → ( and )). */
+export function unescapeLinkDestination(s: string): string {
+  return s.replace(/\\(.)/g, '$1');
+}
