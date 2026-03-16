@@ -179,6 +179,42 @@ describe('copyTree link rewrite (issue #12)', () => {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
+
+  it('rewrites link with escaped parentheses (\\( \\)) to slug path when target file has parentheses in name', () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'adowiki-parens-link-'));
+    try {
+      const wikiRoot = path.join(tmpDir, 'wiki');
+      const docsDir = path.join(tmpDir, 'docs');
+      fs.mkdirSync(wikiRoot, { recursive: true });
+      fs.mkdirSync(docsDir, { recursive: true });
+      fs.writeFileSync(path.join(wikiRoot, '.order'), 'Home\nSubfolder1\n', 'utf-8');
+      fs.writeFileSync(
+        path.join(wikiRoot, 'Home.md'),
+        'See [page](Subfolder1/Subpage\\(1\\)-1.md).',
+        'utf-8'
+      );
+      fs.mkdirSync(path.join(wikiRoot, 'Subfolder1'), { recursive: true });
+      fs.writeFileSync(path.join(wikiRoot, 'Subfolder1', '.order'), 'Subpage(1)-1\n', 'utf-8');
+      fs.writeFileSync(path.join(wikiRoot, 'Subfolder1', 'Subpage(1)-1.md'), '# Subpage', 'utf-8');
+
+      const tree = buildTree(wikiRoot);
+      assignOutputSlugs(tree);
+      const linkRewriteMap = buildLinkRewriteMap(tree);
+      copyTree(wikiRoot, docsDir, tree, undefined, [], '', '', linkRewriteMap);
+
+      const homeOut = path.join(docsDir, 'Home.md');
+      assert.ok(fs.existsSync(homeOut));
+      const homeContent = fs.readFileSync(homeOut, 'utf-8');
+      assert.ok(
+        homeContent.includes('Subfolder1/Subpage-1-1.md') || homeContent.includes('./Subfolder1/Subpage-1-1.md'),
+        'link should use slug path (Subpage-1-1.md)'
+      );
+      assert.ok(!homeContent.includes('Subpage(1)-1'), 'link should not contain raw filename with parentheses');
+      assert.ok(!homeContent.includes('\\('), 'link should not contain escaped parentheses');
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });
 
 describe('copyTree section index relative links', () => {

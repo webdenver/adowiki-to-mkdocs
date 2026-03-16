@@ -145,6 +145,45 @@ describe('transformAdoMarkdown', () => {
       );
       assert.strictEqual(out, 'See [Page](../../Parent3/page-3.md).');
     });
+
+    it('rewrites link with escaped parentheses in URL (\\( and \\)) to slug path', () => {
+      const map = new Map<string, string>([
+        ['Subpage(1)-1', 'Subpage-1-1.md'],
+        ['Subpage(1)-1.md', 'Subpage-1-1.md'],
+      ]);
+      const out = transformAdoMarkdown(
+        'See [page](Subpage\\(1\\)-1.md).',
+        undefined,
+        map
+      );
+      assert.strictEqual(out, 'See [page](Subpage-1-1.md).');
+    });
+
+    it('rewrites link with escaped parentheses to relative path when currentPageSlugPath is set', () => {
+      const map = new Map<string, string>([
+        ['Subpage(1)-1.md', 'Subpage-1-1.md'],
+      ]);
+      const out = transformAdoMarkdown(
+        'Link [here](Subpage\\(1\\)-1.md).',
+        undefined,
+        map,
+        'Folder/Intro.md'
+      );
+      assert.strictEqual(out, 'Link [here](../Subpage-1-1.md).');
+    });
+
+    it('rewrites link with unescaped parentheses in URL when currentPageSlugPath and path from root in map', () => {
+      const map = new Map<string, string>([
+        ['Project-details/Subfolder1/Subpage(1)-1.md', 'Project-details/Subfolder1/Subpage-1-1.md'],
+      ]);
+      const out = transformAdoMarkdown(
+        '[Subpage(1)-1](./Subpage(1)-1.md)',
+        undefined,
+        map,
+        'Project-details/Subfolder1/Subpage1-2.md'
+      );
+      assert.strictEqual(out, '[Subpage(1)-1](./Subpage-1-1.md)');
+    });
   });
 
   describe('section index prefix (isSectionIndex)', () => {

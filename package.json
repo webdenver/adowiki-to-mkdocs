@@ -1,6 +1,6 @@
 {
   "name": "adowiki-to-mkdocs",
-  "version": "0.1.7",
+  "version": "0.1.8",
   "description": "CLI to convert Azure DevOps project wiki to MkDocs format",
   "type": "module",
   "bin": {
